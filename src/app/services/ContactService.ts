@@ -1,7 +1,7 @@
 import {loadContacts, saveContacts} from "@/app/utils/storage";
 import { Contact } from "../models/Contact";
 import { v4 as uuidV4 } from 'uuid';
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
 
 export class ContactService {
@@ -55,18 +55,27 @@ export class ContactService {
         );
     }
 
-    static exportToExcel(contacts: Contact[]): void {
-        const worksheet = XLSX.utils.json_to_sheet(contacts);
-        const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, "Contacts");
+    static async exportToExcel(contacts: Contact[]): Promise<void> {
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet("Contacts");
 
-        const excelBuffer = XLSX.write(workbook, {
-            bookType: "xlsx",
-            type: "array",
-        });
+        if (contacts.length > 0) {
+            worksheet.columns = Object.keys(contacts[0]).map((key) => ({
+                header: key,
+                key: key,
+                width: 20,
+            }));
 
-        const blob = new Blob([excelBuffer], {
-            type: "application/octet-stream",
+            contacts.forEach((contact) => {
+                worksheet.addRow(contact);
+            });
+        }
+
+        const buffer = await workbook.xlsx.writeBuffer();
+
+        const blob = new Blob([buffer], {
+            type:
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         });
 
         saveAs(blob, "address_book.xlsx");
